@@ -4,7 +4,8 @@
     "Parameters": {
         "S3BucketName": {
             "Type": "String",
-            "Description": "New bucket for storing the Amazon SageMaker model and training data."
+            "Description": "Enter a name for a new S3 bucket that stores the Amazon SageMaker model and training data.",
+            "ConstraintDescription": "Use only lower-case characters, numbers, periods, and dashes."
         },
         "S3Prefix": {
             "Type": "String",
@@ -29,78 +30,111 @@
         "BatchTransformInputLocation": {
             "Type": "String",
             "Default": "pred-maintenance-artifacts/batch-transform-input",
-            "Description": "S3 location where processed input file for batch transform is stored"
+            "Description": "S3 location where processed input file for batch transform is stored."
         },
         "BatchTransformOutputLocation": {
             "Type": "String",
             "Default": "pred-maintenance-artifacts/batch-inference",
-            "Description": "S3 location where output of batch transformation is stored"
+            "Description": "S3 location where output of batch transformation is stored."
+        },
+        "CreateVPCEndpoint" : {
+            "Description" : "Do you want to deploy the SageMaker notebook instance in a VPC?",
+            "Type" : "String",
+            "Default" : "Yes",
+            "AllowedValues" : ["Yes", "No"]
+        },
+        "VPCId" : {
+            "Description" : "Select the VPC to deploy the SageMaker notebook instance.",
+            "Type" : "AWS::EC2::VPC::Id"
+        },
+        "VPCPubSub" : {
+            "Description" : "Select the Subnet Id for the notebook instance.",
+            "Type" : "AWS::EC2::Subnet::Id"
         }
     },
     "Metadata": {
         "AWS::CloudFormation::Interface": {
-            "ParameterGroups": [
-            {
-                "Label": {
-                    "default": "Amazon S3 Bucket Configuration"
+            "ParameterGroups": [{
+                    "Label": {
+                        "default": "Amazon S3 Bucket Configuration"
+                    },
+                    "Parameters": ["S3BucketName", "S3Prefix"]
                 },
-                "Parameters": ["S3BucketName", "S3Prefix"]
-            },
-            {
-                "Label": {
-                    "default": "Amazon SageMaker Model Configuration"
+                {
+                    "Label": {
+                        "default": "Amazon SageMaker Model Configuration"
+                    },
+                    "Parameters": ["SageMakerModelName", "SageMakerModelTrainInstanceType"]
                 },
-                "Parameters": ["SageMakerModelName", "SageMakerModelTrainInstanceType"]
-            },
-            {
-                "Label": {
-                    "default": "Amazon SageMaker Batch Transform Configuration"
+                {
+                    "Label": {
+                        "default": "Amazon SageMaker Batch Transform Configuration"
+                    },
+                    "Parameters": ["BatchTransformFile", "BatchTransformInputLocation", "BatchTransformOutputLocation"]
                 },
-                "Parameters": ["BatchTransformFile", "BatchTransformInputLocation", "BatchTransformOutputLocation"]
-            }
+                {
+                    "Label": {
+                        "default": "VPC Configuration"
+                    },
+                    "Parameters": ["CreateVPCEndpoint", "VPCId", "VPCPubSub"]
+                }
             ],
             "ParameterLabels": {
                 "S3BucketName": {
                     "default": "Model and Data Bucket Name"
                 },
-                "S3Prefix" : { 
-                    "default" : "SageMaker S3 Prefix" 
+                "S3Prefix": {
+                    "default": "SageMaker S3 Prefix"
                 },
-                "SageMakerModelName" : { 
-                    "default" : "SageMaker Model Name" 
+                "SageMakerModelName": {
+                    "default": "SageMaker Model Name"
                 },
-                "SageMakerModelTrainInstanceType" : { 
-                    "default" : "Model Training Instance Type" 
+                "SageMakerModelTrainInstanceType": {
+                    "default": "Model Training Instance Type"
                 },
-                "BatchTransformFile" : { 
-                    "default" : "Prediction Input File"
+                "BatchTransformFile": {
+                    "default": "Prediction Input File"
                 },
-                "BatchTransformInputLocation" : { 
-                    "default" : "Batch Transform Input S3 Location"
+                "BatchTransformInputLocation": {
+                    "default": "Batch Transform Input S3 Location"
                 },
-                "BatchTransformOutputLocation": { 
-                    "default" : "Prediction Transform Results S3 Location"
+                "BatchTransformOutputLocation": {
+                    "default": "Prediction Transform Results S3 Location"
+                },
+                "CreateVPCEndpoint": {
+                    "default": "Use VPC for SageMaker Notebook"
+                },
+                "VPCId": {
+                    "default": "VPC Id"
+                },
+                "VPCPubSub": {
+                    "default": "Subnet Id"
                 }
             }
         }
     },
     "Mappings": {
-        "Function" : {
-            "PredictiveMaintenance" : {
-                "S3Bucket" : "solutions-test",
-                "S3Key" : "predictive-maintenance-using-machine-learning/v0.5/predictive_maintenance.zip"
+        "Function": {
+            "PredictiveMaintenance": {
+                "S3Bucket": "solutions",
+                "S3Key": "predictive-maintenance-using-machine-learning/v1.0.1/predictive_maintenance.zip"
             }
         },
         "Notebook": {
             "PredictiveMaintenance": {
-                "S3Bucket": "solutions-test",
-                "S3Key": "/predictive-maintenance-using-machine-learning/v0.5/notebooks/"
+                "S3Bucket": "solutions",
+                "S3Key": "/predictive-maintenance-using-machine-learning/v1.0.1/notebooks/"
             }
         }
+    },
+    "Conditions" : {
+        "UseVPC" : {"Fn::Equals" : [{"Ref" : "CreateVPCEndpoint"}, "Yes"]},
+        "NoVPC" : {"Fn::Equals" : [{"Ref" : "CreateVPCEndpoint"}, "No"]}
     },
     "Resources": {
         "S3Bucket": {
             "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
             "Properties": {
                 "BucketName": {
                     "Ref": "S3BucketName"
@@ -117,14 +151,191 @@
                             "SSEAlgorithm": "AES256"
                         }
                     }]
+                },
+                "LoggingConfiguration": {
+                    "DestinationBucketName": {
+                        "Ref": "LogBucket"
+                    },
+                    "LogFilePrefix": "notebook-data-bucket/"
+                }
+            },
+            "Metadata": {
+                "cfn_nag": {
+                    "rules_to_suppress": [{
+                        "id": "W51",
+                        "reason": "Default policy works fine"
+                    }]
                 }
             }
         },
-        "BasicNotebookInstance": {
+        "LogBucket": {
+            "Type": "AWS::S3::Bucket",
+            "DeletionPolicy": "Retain",
+            "Properties": {
+                "AccessControl": "LogDeliveryWrite",
+                "PublicAccessBlockConfiguration": {
+                    "BlockPublicAcls": true,
+                    "BlockPublicPolicy": true,
+                    "IgnorePublicAcls": true,
+                    "RestrictPublicBuckets": true
+                },
+                "BucketEncryption": {
+                    "ServerSideEncryptionConfiguration": [{
+                        "ServerSideEncryptionByDefault": {
+                            "SSEAlgorithm": "AES256"
+                        }
+                    }]
+                }
+            },
+            "Metadata": {
+                "cfn_nag": {
+                    "rules_to_suppress": [{
+                        "id": "W35",
+                        "reason": "this is the log bucket"
+                    }]
+                }
+            }
+        },
+        "LogBucketPolicy": {
+            "Type": "AWS::S3::BucketPolicy",
+            "Properties": {
+                "Bucket": {
+                    "Ref": "LogBucket"
+                },
+                "PolicyDocument": {
+                    "Version": "2012-10-17",
+                    "Statement": [{
+                        "Sid": "AWSCloudTrailAclCheck",
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "cloudtrail.amazonaws.com"
+                        },
+                        "Action": "s3:GetBucketAcl",
+                        "Resource": {
+                            "Fn::GetAtt": [
+                                "LogBucket",
+                                "Arn"
+                            ]
+                        }
+                    }, {
+                        "Sid": "AWSCloudTrailWrite",
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": "cloudtrail.amazonaws.com"
+                        },
+                        "Action": "s3:PutObject",
+                        "Resource": {
+                            "Fn::Join": ["", ["arn:aws:s3:::", {
+                                "Ref": "LogBucket"
+                            }, "/AWSLogs/", {
+                                "Ref": "AWS::AccountId"
+                            }, "/*"]]
+                        },
+                        "Condition": {
+                            "StringEquals": {
+                                "s3:x-amz-acl": "bucket-owner-full-control"
+                            }
+                        }
+                    }]
+                }
+            }
+        },
+        "S3Endpoint" : {
+            "Condition" : "UseVPC",
+            "Type" : "AWS::EC2::VPCEndpoint",
+            "Properties" : {
+                "PolicyDocument" : {
+                    "Version":"2012-10-17",
+                    "Statement":[{
+                        "Effect": "Allow",
+                        "Principal": {
+                            "Service": [
+                              "sagemaker.amazonaws.com",
+                              "lambda.amazonaws.com"
+                            ]
+                        },
+                        "Action":["s3:*"],
+                        "Resource":[{"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "S3Bucket"}]]},
+                                    {"Fn::Join": ["", ["arn:aws:s3:::", {"Ref": "S3Bucket"}, "/*"]]}
+                                   ]
+                    }]
+                },
+                "ServiceName" : { "Fn::Join": [ "", [ "com.amazonaws.", { "Ref": "AWS::Region" }, ".s3" ] ] },
+                "VpcId" : {"Ref" : "VPCId"}
+            }
+        },
+        "SecurityGroup" : {
+            "Condition": "UseVPC",
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Notebook instance security group. By default allows connection to the internet",
+                "VpcId" : { "Ref" : "VPCId" },
+                "SecurityGroupEgress" : [{ "IpProtocol" : "tcp", "FromPort" : "443", "ToPort" : "443", "CidrIp" : "0.0.0.0/0" }]
+            },
+            "Metadata": {
+                "cfn_nag": {
+                    "rules_to_suppress": [{
+                        "id": "W5",
+                        "reason": "Allow notebook users to access the internet from the notebook. Needed to get demo data"
+                    }, {
+                        "id": "W36",
+                        "reason": "Security Group has a description that includes description of egress rule"
+                    }]
+                }
+            }
+        },
+        "NotebookInstanceVolumeEncryptionKey": {
+            "Type": "AWS::KMS::Key",
+            "Properties": {
+                "Description": "KMS Key for encrypting sagemaker notebook instance volume",
+                "Enabled" : true,
+                "EnableKeyRotation": true,
+                "PendingWindowInDays": 7,
+                "KeyPolicy": {
+                    "Version": "2012-10-17",
+                    "Id": "default-key-policy",
+                    "Statement": [{
+                        "Sid": "Enable IAM User Permissions",
+                        "Effect": "Allow",
+                        "Principal": {
+                            "AWS": {"Fn::Join": ["", ["arn:aws:iam::", {"Ref": "AWS::AccountId"}, ":root"]]}
+                        },
+                        "Action": "kms:*",
+                        "Resource": "*"
+                    }]
+                }
+            }
+        },
+        "VPCNotebookInstance": {
+            "Condition": "UseVPC",
             "Type": "AWS::SageMaker::NotebookInstance",
             "Properties": {
                 "InstanceType": "ml.t2.medium",
                 "NotebookInstanceName": "PredictiveMaintenanceNotebookInstance",
+                "SubnetId" : {"Ref" : "VPCPubSub"},
+                "SecurityGroupIds" : [{"Ref" : "SecurityGroup"}],
+                "KmsKeyId" : {"Ref" : "NotebookInstanceVolumeEncryptionKey"},
+                "RoleArn": {
+                    "Fn::GetAtt": [
+                        "NotebookInstanceExecutionRole",
+                        "Arn"
+                    ]
+                },
+                "LifecycleConfigName": {
+                    "Fn::GetAtt": [
+                        "BasicNotebookInstanceLifecycleConfig",
+                        "NotebookInstanceLifecycleConfigName"
+                    ]
+                }
+            }
+        },
+        "BasicNotebookInstance": {
+            "Condition": "NoVPC",
+            "Type": "AWS::SageMaker::NotebookInstance",
+            "Properties": {
+                "InstanceType": "ml.t2.medium",
+                "NotebookInstanceName": "PredictiveMaintenanceNotebookInstance",
+                "KmsKeyId" : {"Ref" : "NotebookInstanceVolumeEncryptionKey"},
                 "RoleArn": {
                     "Fn::GetAtt": [
                         "NotebookInstanceExecutionRole",
@@ -145,14 +356,16 @@
                 "S3Bucket"
             ],
             "Properties": {
-                "OnStart": [{
+                "OnCreate": [{
                     "Content": {
                         "Fn::Base64": {
                             "Fn::Join": [
                                 ";",
-                                ["cd /home/ec2-user/SageMaker",
+                                [
+                                    "cd /home/ec2-user/SageMaker",
+                                    "mkdir sagemaker_predictive_maintenance_entry_point",
                                     {
-                                        "Fn::Join": ["", ["aws s3 sync s3://",
+                                        "Fn::Join": ["", ["aws s3 cp s3://",
                                             {
                                                 "Fn::Join": ["-", [{
                                                     "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Bucket"]
@@ -161,7 +374,33 @@
                                                 }]]
                                             }, {
                                                 "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Key"]
-                                            }, " ."
+                                            }, "sagemaker_predictive_maintenance_entry_point/sagemaker_predictive_maintenance_entry_point.py sagemaker_predictive_maintenance_entry_point"
+                                        ]]
+                                    },
+                                    {
+                                        "Fn::Join": ["", ["aws s3 cp s3://",
+                                            {
+                                                "Fn::Join": ["-", [{
+                                                    "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Bucket"]
+                                                }, {
+                                                    "Ref": "AWS::Region"
+                                                }]]
+                                            }, {
+                                                "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Key"]
+                                            }, "sagemaker_predictive_maintenance_entry_point/requirements.txt sagemaker_predictive_maintenance_entry_point"
+                                        ]]
+                                    },
+                                    {
+                                        "Fn::Join": ["", ["aws s3 cp s3://",
+                                            {
+                                                "Fn::Join": ["-", [{
+                                                    "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Bucket"]
+                                                }, {
+                                                    "Ref": "AWS::Region"
+                                                }]]
+                                            }, {
+                                                "Fn::FindInMap": ["Notebook", "PredictiveMaintenance", "S3Key"]
+                                            }, "sagemaker_predictive_maintenance.ipynb ."
                                         ]]
                                     },
                                     {
@@ -183,7 +422,8 @@
                                         "Fn::Join": ["", ["sed -i 's/ml.p3.2xlarge/", {
                                             "Ref": "SageMakerModelTrainInstanceType"
                                         }, "/g' sagemaker_predictive_maintenance.ipynb"]]
-                                    }
+                                    },
+                                    "sudo chown -R ec2-user:ec2-user ."
                                 ]
                             ]
                         }
@@ -367,35 +607,61 @@
                 "Roles": [{
                     "Ref": "NotebookInstanceExecutionRole"
                 }]
+            },
+            "Metadata": {
+                "cfn_nag": {
+                    "rules_to_suppress": [{
+                        "id": "W12",
+                        "reason": "This policy needs to have * resource because some of the resources are created dynamically and some of its actions are * resource actions"
+                    }]
+                }
             }
         },
-        "LambdaFunction":{
-            "Type":"AWS::Lambda::Function",
-            "Properties":{
-                "Handler":"index.lambda_handler",
-                "FunctionName":"predictive-maintenance-batch-transformer",
-                "Role":{
-                "Fn::GetAtt":[
-                    "LambdaExecutionRole",
-                    "Arn"
-                ]
+        "LambdaFunction": {
+            "Type": "AWS::Lambda::Function",
+            "Properties": {
+                "Handler": "index.lambda_handler",
+                "FunctionName": "predictive-maintenance-batch-transformer",
+                "Role": {
+                    "Fn::GetAtt": [
+                        "LambdaExecutionRole",
+                        "Arn"
+                    ]
                 },
                 "Code": {
-                    "S3Bucket": { "Fn::Join": ["-", [ { "Fn::FindInMap" : [ "Function", "PredictiveMaintenance", "S3Bucket"]}, {"Ref": "AWS::Region"} ]] },
-                    "S3Key": { "Fn::FindInMap" : [ "Function", "PredictiveMaintenance", "S3Key"]}
-                },
-                "Runtime":"python3.7",
-                "Environment" : {
-                    "Variables" : {
-                        "s3_bucket" : { "Ref": "S3BucketName"},
-                        "s3_test_key" : { "Ref": "BatchTransformFile"},
-                        "s3_transform_input" : {"Ref": "BatchTransformInputLocation"},
-                        "s3_transform_output" : {"Ref": "BatchTransformOutputLocation"},
-                        "sm_model_name": {"Ref": "SageMakerModelName"}
+                    "S3Bucket": {
+                        "Fn::Join": ["-", [{
+                            "Fn::FindInMap": ["Function", "PredictiveMaintenance", "S3Bucket"]
+                        }, {
+                            "Ref": "AWS::Region"
+                        }]]
+                    },
+                    "S3Key": {
+                        "Fn::FindInMap": ["Function", "PredictiveMaintenance", "S3Key"]
                     }
                 },
-                "Timeout" : 600,
-                "MemorySize" : 256
+                "Runtime": "python3.7",
+                "Environment": {
+                    "Variables": {
+                        "s3_bucket": {
+                            "Ref": "S3BucketName"
+                        },
+                        "s3_test_key": {
+                            "Ref": "BatchTransformFile"
+                        },
+                        "s3_transform_input": {
+                            "Ref": "BatchTransformInputLocation"
+                        },
+                        "s3_transform_output": {
+                            "Ref": "BatchTransformOutputLocation"
+                        },
+                        "sm_model_name": {
+                            "Ref": "SageMakerModelName"
+                        }
+                    }
+                },
+                "Timeout": 600,
+                "MemorySize": 256
             }
         },
         "ScheduledRule": {
@@ -478,9 +744,18 @@
                                     "s3:ListBucketMultipartUploads",
                                     "s3:PutObject"
                                 ],
-                                "Resource": [
-                                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "S3BucketName"}]]},
-                                    { "Fn::Join": ["", ["arn:aws:s3:::", { "Ref": "S3BucketName"}, "/",  { "Ref": "S3Prefix"}, "*"]]}
+                                "Resource": [{
+                                        "Fn::Join": ["", ["arn:aws:s3:::", {
+                                            "Ref": "S3BucketName"
+                                        }]]
+                                    },
+                                    {
+                                        "Fn::Join": ["", ["arn:aws:s3:::", {
+                                            "Ref": "S3BucketName"
+                                        }, "/", {
+                                            "Ref": "S3Prefix"
+                                        }, "*"]]
+                                    }
                                 ]
                             },
                             {
@@ -497,13 +772,11 @@
                     }
                 }]
             }
-        },
+        }
     },
     "Outputs": {
         "BasicNotebookInstanceId": {
-            "Value": {
-                "Ref": "BasicNotebookInstance"
-            }
+            "Value": { "Fn::Sub" : [ "https://predictivemaintenancenotebookinstance.notebook.${Region}.sagemaker.aws/notebooks/sagemaker_predictive_maintenance.ipynb", { "Region": {"Ref" : "AWS::Region" }} ]}
         }
     }
 }
