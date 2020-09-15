@@ -1,0 +1,287 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: "(SO0061) - predictive-maintenance-using-machine-learning: Solution for training a predictive maintenance model using Amazon SageMaker and Apache MXNet. Version 1"
+Parameters:
+  SolutionPrefix:
+    Type: String
+    Default: "sm-soln-pred-maint"
+    Description: |
+      Used to name resources created as part of this stack (and inside nested stacks too).
+      Can be the same as the stack name used by AWS CloudFormation, but this field has extra
+      constraints because it's used to name resources with restrictions (e.g. Amazon S3 bucket
+      names cannot contain capital letters).
+    AllowedPattern: '^sm-soln-pred-m[a-z0-9\-]{1,20}$'
+    ConstraintDescription: |
+      Only allowed to use lowercase letters, hyphens and/or numbers.
+      Should also start with 'sm-soln-pred-maint' for permission management.
+  SolutionExecutionRole:
+    Type: String
+    Default: ""
+    Description: |
+      IAM Role that will be attached to the resources created by this cloudformation to grant them permissions to
+      perform their required functions. This role should allow SageMaker and Lambda perform the required actions like
+      creating training jobs and processing jobs. If left blank, the template will attempt to create a role for you.
+      This can cause a stack creation error if you don't have privileges to create new roles.
+  S3Prefix:
+    Default: "pred-maintenance-artifacts"
+    Description: S3 prefix used by SageMaker for training and transformation jobs.
+    Type: String
+  SageMakerModelName:
+    Default: "sm-soln-pred-maint-model"
+    Description: Model name and training job name.
+    Type: String
+  BatchTransformFile:
+    Default: "pred-maintenance-artifacts/data/test-0.csv"
+    Description: Input file to process and batch transform.
+    Type: String
+  BatchTransformInputLocation:
+    Default: "pred-maintenance-artifacts/batch-transform-input"
+    Description: S3 location where processed input file for batch transform is stored.
+    Type: String
+  BatchTransformOutputLocation:
+    Default: "pred-maintenance-artifacts/batch-inference"
+    Description: S3 location where output of batch transformation is stored.
+    Type: String
+  LaunchSageMakerNotebookClassic:
+    Description: Whether to launch classic sagemaker notebook instance
+    Type: String
+    AllowedValues:
+      - "Yes"
+      - "No"
+    Default: "Yes"
+  StackVersion:
+    Description: |
+      CloudFormation Stack version.
+      Use 'release' version unless you are customizing the
+      CloudFormation templates and solution artifacts.
+    Type: String
+    Default: release
+    AllowedValues:
+      - release
+      - development
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+      -
+        Label:
+          default: Solution Configuration
+        Parameters:
+          - SolutionPrefix
+          - SolutionExecutionRole
+      -
+        Label:
+          default: SageMaker Configuration
+        Parameters:
+          - LaunchSageMakerNotebookClassic
+          - SageMakerModelName
+      -
+        Label:
+          default: S3 Configuration
+        Parameters:
+          - S3Prefix
+          - BatchTransformFile
+          - BatchTransformInputLocation
+          - BatchTransformOutputLocation
+    ParameterLabels:
+      SolutionPrefix:
+        default: Solution Resources Name Prefix
+      SolutionExecutionRole:
+        default: Solution IAM Role Arn
+      S3Prefix:
+        default: Data Prefix
+      BatchTransformFile:
+        default: File for test data
+      BatchTransformInputLocation:
+        default: SageMaker Batch Transform Input
+      BatchTransformOutputLocation:
+        default: SageMaker Batch Transform Output
+      LaunchSageMakerNotebookClassic:
+        default: Launch SageMaker Notebook Instance
+      SageMakerModelName:
+        default: SageMaker Model Name
+Mappings:
+  SolutionsS3BucketName:
+    development:
+      Prefix: sagemaker-solutions-build
+    release:
+      Prefix: sagemaker-solutions
+  Function:
+    PredictiveMaintenance:
+      S3Key: "Predictive-maintenance-using-machine-learning/build/predictive_maintenance.zip"
+
+Conditions:
+  CreateClassicSageMakerResources: !Equals [ !Ref LaunchSageMakerNotebookClassic, "Yes" ]
+  CreateCustomSolutionRole: !Equals [!Ref SolutionExecutionRole, ""]
+
+Resources:
+  S3Bucket:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LoggingConfiguration:
+        DestinationBucketName: !Ref LogBucket
+        LogFilePrefix: pred-maintenance-bucket/
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W51
+            reason: Default policy works fine
+  LogBucket:
+    Type: 'AWS::S3::Bucket'
+    DeletionPolicy: Retain
+    Properties:
+      AccessControl: LogDeliveryWrite
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W35
+            reason: this is the log bucket
+  LogBucketPolicy:
+    Type: 'AWS::S3::BucketPolicy'
+    Properties:
+      Bucket: !Ref LogBucket
+      PolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          - Sid: AWSCloudTrailAclCheck
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 's3:GetBucketAcl'
+            Resource: !GetAtt
+              - LogBucket
+              - Arn
+          - Sid: AWSCloudTrailWrite
+            Effect: Allow
+            Principal:
+              Service: cloudtrail.amazonaws.com
+            Action: 's3:PutObject'
+            Resource: !Join
+              - ''
+              - - 'arn:aws:s3:::'
+                - !Ref LogBucket
+                - /AWSLogs/
+                - !Ref 'AWS::AccountId'
+                - /*
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      FunctionName: !Sub "${SolutionPrefix}-data-batch-transformer"
+      Role: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+      Code:
+        S3Bucket: !Sub
+          - "${SolutionRefBucketBase}-${AWS::Region}"
+          - SolutionRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+        S3Key: !FindInMap [Function, PredictiveMaintenance, S3Key]
+      Runtime: python3.7
+      Environment:
+        Variables:
+          s3_bucket: !Ref S3Bucket
+          s3_test_key: !Ref BatchTransformFile
+          s3_transform_input: !Ref BatchTransformInputLocation
+          s3_transform_output: !Ref BatchTransformOutputLocation
+          sm_model_name: !Ref SageMakerModelName
+      Timeout: 600
+      MemorySize: 256
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Passed in role or created role both have cloudwatch write permissions
+  ScheduledRule:
+    Type: AWS::Events::Rule
+    Properties:
+      Description: ScheduledRule
+      ScheduleExpression: rate(1 day)
+      State: DISABLED
+      Targets:
+        - Arn:
+            Fn::GetAtt:
+              - LambdaFunction
+              - Arn
+          Id: TargetFunctionV1
+  PermissionForEventsToInvokeLambda:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !Ref LambdaFunction
+      Action: lambda:InvokeFunction
+      Principal: events.amazonaws.com
+      SourceArn:
+        Fn::GetAtt:
+          - ScheduledRule
+          - Arn
+  SageMakerStack:
+    Type: "AWS::CloudFormation::Stack"
+    Condition: CreateClassicSageMakerResources
+    Properties:
+      TemplateURL: !Sub
+        - "https://s3.amazonaws.com/${SolutionRefBucketBase}-${Region}/Predictive-maintenance-using-machine-learning/deployment/predictive-maintenance-sagemaker-notebook-instance.yaml"
+        - SolutionRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+          Region: !Ref AWS::Region
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        SolutionS3BucketName: !Ref S3Bucket
+        SolutionS3Prefix: !Ref S3Prefix
+        SageMakerTrainingJobName: !Ref SageMakerModelName
+        NotebookInstanceExecutionRoleArn: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+        StackVersion: !Ref StackVersion
+  PermissionsStack:
+    Type: "AWS::CloudFormation::Stack"
+    Condition: CreateCustomSolutionRole
+    Properties:
+      TemplateURL: !Sub
+        - "https://s3.amazonaws.com/${SolutionRefBucketBase}-${Region}/Predictive-maintenance-using-machine-learning/deployment/predictive-maintenance-permissions.yaml"
+        - SolutionRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+          Region: !Ref AWS::Region
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        SolutionS3BucketName: !Ref S3Bucket
+        StackVersion: !Ref StackVersion
+
+Outputs:
+  NotebookInstance:
+    Condition: CreateClassicSageMakerResources
+    Description: "SageMaker Notebook instance to manually orchestrate data preprocessing and model training"
+    Value: !GetAtt SageMakerStack.Outputs.NotebookInstance
+
+  NotebookInstanceExecutionRoleArn:
+    Description: "Arn of SageMaker Execution Role"
+    Value: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+
+  SolutionPrefix:
+    Description: "Solution Prefix for naming SageMaker transient resources"
+    Value: !Ref SolutionPrefix
+
+  SolutionS3Bucket:
+    Description: "Solution S3 bucket name"
+    Value: !Ref S3Bucket
+
+  SolutionS3Prefix:
+    Description: "Solution S3 prefix name"
+    Value: !Ref S3Prefix
+
+  SageMakerTrainingJobName:
+    Description: "Name of the solution training job and model"
+    Value: !Ref SageMakerModelName

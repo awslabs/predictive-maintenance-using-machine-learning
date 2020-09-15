@@ -1,0 +1,61 @@
+{
+    "id": "sm-soln-pred-maint",
+    "name": "Predictive Maintenance using Machine Learning",
+    "shortName": "Predictive Maintenance",
+    "priority": 0,
+    "desc": "Companies need to monitor their industrial assets to ensure sustained performance and the typical manual routine checkups are time-consuming and reactive. However, with the advent of cheap sensors, companies can get metrics from industrial assets at regular intervals and with this trove of data, companies can use machine learning models to predict when assets might fail. This project shows how to use Amazon SageMaker to train a deep learning model that uses historical sensor readings to predict how much longer the asset is likely to work for before it becomes critical.",
+    "meta": "predictive maintenance supervised rnn mxnet rul iot",
+    "tags": ["manufacturing", "industry", "forecasting", "time series", "sensors", "iot"],
+    "parameters": [
+        {
+            "name": "SolutionPrefix",
+            "type": "text",
+            "default": "sm-soln-pred-maint"
+        },
+        {
+            "name": "S3Prefix",
+            "type": "text",
+            "default": "pred-maintenance-artifacts/"
+        },
+        {
+            "name": "SageMakerModelName",
+            "type": "text",
+            "default": "sm-soln-pred-maint-model"
+        },
+        {
+            "name": "BatchTransformFile",
+            "type": "text",
+            "default": "pred-maintenance-artifacts/batch-transform-input"
+        },
+        {
+            "name": "BatchTransformInputLocation",
+            "type": "text",
+            "default": "sm-soln-pred-maint-model"
+        },
+        {
+            "name": "BatchTransformOutputLocation",
+            "type": "text",
+            "default": "pred-maintenance-artifacts/batch-inference"
+        },
+        {
+            "name": "LaunchSageMakerNotebookClassic",
+            "type": "text",
+            "default": "No"
+        },
+        {
+            "name": "StackVersion",
+            "type": "text",
+            "default": "release"
+        }
+    ],
+    "acknowledgements": ["CAPABILITY_IAM","CAPABILITY_NAMED_IAM"],
+    "cloudFormationTemplate": "https://sagemaker-solutions-us-west-2.s3-us-west-2.amazonaws.com/Predictive-maintenance-machine-learning/deployment/predictive-maintenance-using-machine-learning.yaml",
+    "serviceCatalogProduct": "TBD",
+    "copyS3Source": "sagemaker-solutions-us-west-2",
+    "copyS3SourcePrefix": "Predictive-maintenance-using-machine-learning/source/notebooks",
+    "notebooksDirectory": "Predictive-maintenance-machine-learning/source/notebooks",
+    "notebookPaths": [
+        "Fraud-detection-using-machine-learning/source/notebooks/sagemaker_fraud_detection.ipynb"
+    ],
+    "permissions": "TBD"
+ }

@@ -1,0 +1,66 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: "(SO0061) - predictive-maintenance-using-machine-learning: Solution for training a predictive maintenance model using Amazon SageMaker and Apache MXNet. Version 1"
+Parameters:
+  SolutionPrefix:
+    Type: String
+    Default: "sm-soln-pred-maint"
+  SolutionS3BucketName:
+    Type: String
+  SolutionS3Prefix:
+    Type: String
+  SageMakerTrainingJobName:
+    Type: String
+  NotebookInstanceExecutionRoleArn:
+    Type: String
+  StackVersion:
+    Type: String
+
+Mappings:
+  SolutionsS3BucketName:
+    development:
+      Prefix: sagemaker-solutions-build
+    release:
+      Prefix: sagemaker-solutions
+  SageMaker:
+    Source:
+      S3Key: "Predictive-maintenance-using-machine-learning/source/notebooks/"
+
+Resources:
+  BasicNotebookInstance:
+    Type: AWS::SageMaker::NotebookInstance
+    Properties:
+      InstanceType: ml.t2.medium
+      NotebookInstanceName: !Sub "${SolutionPrefix}-notebook-instance"
+      RoleArn: !Ref NotebookInstanceExecutionRoleArn
+      LifecycleConfigName: !GetAtt BasicNotebookInstanceLifecycleConfig.NotebookInstanceLifecycleConfigName
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W1201
+            reason: Solution does not have KMS encryption enabled by default
+  BasicNotebookInstanceLifecycleConfig:
+    Type: AWS::SageMaker::NotebookInstanceLifecycleConfig
+    Properties:
+      NotebookInstanceLifecycleConfigName: !Sub "${SolutionPrefix}-nb-lifecycle-config"
+      OnCreate:
+        - Content:
+            Fn::Base64: !Sub
+              - |
+                cd /home/ec2-user/SageMaker
+                aws s3 cp --recursive s3://${SolutionsRefBucketBase}-${AWS::Region}/${SolutionsRefSource} .
+                touch stack_outputs.json
+                echo '{' >> stack_outputs.json
+                echo '  "NotebookInstanceExecutionRoleArn": "${NotebookInstanceExecutionRoleArn}",' >> stack_outputs.json
+                echo '  "SolutionPrefix": "${SolutionPrefix}",' >> stack_outputs.json
+                echo '  "SolutionS3Bucket": "${SolutionS3BucketName}",' >> stack_outputs.json
+                echo '  "SolutionS3Prefix": "${SolutionS3Prefix}",' >> stack_outputs.json
+                echo '  "SageMakerTrainingJobName": "${SageMakerTrainingJobName}"' >> stack_outputs.json
+                echo '}' >> stack_outputs.json
+                sudo chown -R ec2-user:ec2-user .
+              - SolutionsRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+                SolutionsRefSource: !FindInMap [SageMaker, Source, S3Key]
+
+Outputs:
+  NotebookInstance:
+    Value: !Sub "https://${SolutionPrefix}-notebook-instance.notebook.${AWS::Region}.sagemaker.aws/notebooks/sagemaker_predictive_maintenance.ipynb"
+    Description: "SageMaker Notebook instance link with notebook file open"
