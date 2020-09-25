@@ -13,7 +13,7 @@ Parameters:
     ConstraintDescription: |
       Only allowed to use lowercase letters, hyphens and/or numbers.
       Should also start with 'sm-soln-pred-maint' for permission management.
-  SolutionExecutionRole:
+  IamRole:
     Type: String
     Default: ""
     Description: |
@@ -67,7 +67,7 @@ Metadata:
           default: Solution Configuration
         Parameters:
           - SolutionPrefix
-          - SolutionExecutionRole
+          - IamRole
       -
         Label:
           default: SageMaker Configuration
@@ -85,7 +85,7 @@ Metadata:
     ParameterLabels:
       SolutionPrefix:
         default: Solution Resources Name Prefix
-      SolutionExecutionRole:
+      IamRole:
         default: Solution IAM Role Arn
       S3Prefix:
         default: Data Prefix
@@ -111,7 +111,7 @@ Mappings:
 
 Conditions:
   CreateClassicSageMakerResources: !Equals [ !Ref LaunchSageMakerNotebookClassic, "Yes" ]
-  CreateCustomSolutionRole: !Equals [!Ref SolutionExecutionRole, ""]
+  CreateCustomSolutionRole: !Equals [!Ref IamRole, ""]
 
 Resources:
   S3Bucket:
@@ -189,7 +189,7 @@ Resources:
     Properties:
       Handler: index.lambda_handler
       FunctionName: !Sub "${SolutionPrefix}-data-batch-transformer"
-      Role: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+      Role: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref IamRole]
       Code:
         S3Bucket: !Sub
           - "${SolutionRefBucketBase}-${AWS::Region}"
@@ -245,7 +245,7 @@ Resources:
         SolutionS3BucketName: !Ref S3Bucket
         SolutionS3Prefix: !Ref S3Prefix
         SageMakerTrainingJobName: !Ref SageMakerModelName
-        NotebookInstanceExecutionRoleArn: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+        NotebookInstanceExecutionRoleArn: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref IamRole]
         StackVersion: !Ref StackVersion
   PermissionsStack:
     Type: "AWS::CloudFormation::Stack"
@@ -259,6 +259,22 @@ Resources:
         SolutionPrefix: !Ref SolutionPrefix
         SolutionS3BucketName: !Ref S3Bucket
         StackVersion: !Ref StackVersion
+  SolutionAssistantStack:
+    Type: "AWS::CloudFormation::Stack"
+    Properties:
+      TemplateURL: !Sub
+        - "https://s3.amazonaws.com/${SolutionRefBucketBase}-${Region}/Predictive-maintenance-using-machine-learning/deployment/solution-assistant/solution-assistant.yaml"
+        - SolutionRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+          Region: !Ref AWS::Region
+      Parameters:
+        SolutionPrefix: !Ref SolutionPrefix
+        SageMakerModelName: !Ref SageMakerModelName
+        SolutionS3BucketName: !Ref S3Bucket
+        SolutionsRefBucketName: !Sub
+          - "${SolutionRefBucketBase}-${AWS::Region}"
+          - SolutionRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]
+        LogBucketName: !Ref LogBucket
+        RoleArn: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref IamRole]
 
 Outputs:
   NotebookInstance:
@@ -266,9 +282,9 @@ Outputs:
     Description: "SageMaker Notebook instance to manually orchestrate data preprocessing and model training"
     Value: !GetAtt SageMakerStack.Outputs.NotebookInstance
 
-  NotebookInstanceExecutionRoleArn:
+  IamRole:
     Description: "Arn of SageMaker Execution Role"
-    Value: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref SolutionExecutionRole]
+    Value: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref IamRole]
 
   SolutionPrefix:
     Description: "Solution Prefix for naming SageMaker transient resources"

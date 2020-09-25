@@ -1,0 +1,52 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stack for Solution Helper resources.
+Parameters:
+  SolutionPrefix:
+    Description: Used as a prefix to name all stack resources.
+    Type: String
+  SageMakerModelName:
+    Description: Amazon SageMaker model name
+    Type: String
+  SolutionS3BucketName:
+    Description: Amazon S3 Bucket used to store trained model and data.
+    Type: String
+  SolutionsRefBucketName:
+    Description: Amazon S3 Bucket containing solutions.
+    Type: String
+  LogBucketName:
+    Description: Amazon S3 Bucket used to S3 access logs.
+    Type: String
+  RoleArn:
+    Description: Role to use for lambda resource
+    Type: String
+Mappings:
+  Function:
+    SolutionAssistant:
+      S3Key: "Predictive-maintenance-using-machine-learning/build/solution_assistant.zip"
+Resources:
+  SolutionAssistant:
+    Type: "Custom::SolutionAssistant"
+    Properties:
+      ServiceToken: !GetAtt SolutionAssistantLambda.Arn
+      SageMakerModelName: !Ref SageMakerModelName
+      SolutionS3BucketName: !Ref SolutionS3BucketName
+      LogBucketName: !Ref LogBucketName
+  SolutionAssistantLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: "lambda_function.handler"
+      FunctionName: !Sub "${SolutionPrefix}-solution-assistant"
+      Role: !Ref RoleArn
+      Runtime: "python3.8"
+      Code:
+        S3Bucket: !Ref SolutionsRefBucketName
+        S3Key: !FindInMap
+          - Function
+          - SolutionAssistant
+          - S3Key
+      Timeout : 60
+    Metadata:
+      cfn_nag:
+        rules_to_suppress:
+          - id: W58
+            reason: Passed in role has cloudwatch write permissions

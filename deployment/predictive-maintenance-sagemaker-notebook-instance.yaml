@@ -50,7 +50,7 @@ Resources:
                 aws s3 cp --recursive s3://${SolutionsRefBucketBase}-${AWS::Region}/${SolutionsRefSource} .
                 touch stack_outputs.json
                 echo '{' >> stack_outputs.json
-                echo '  "NotebookInstanceExecutionRoleArn": "${NotebookInstanceExecutionRoleArn}",' >> stack_outputs.json
+                echo '  "IamRole": "${NotebookInstanceExecutionRoleArn}",' >> stack_outputs.json
                 echo '  "SolutionPrefix": "${SolutionPrefix}",' >> stack_outputs.json
                 echo '  "SolutionS3Bucket": "${SolutionS3BucketName}",' >> stack_outputs.json
                 echo '  "SolutionS3Prefix": "${SolutionS3Prefix}",' >> stack_outputs.json
