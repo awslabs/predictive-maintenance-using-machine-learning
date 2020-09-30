@@ -41,13 +41,13 @@ Parameters:
     Default: "pred-maintenance-artifacts/batch-inference"
     Description: S3 location where output of batch transformation is stored.
     Type: String
-  LaunchSageMakerNotebookClassic:
+  CreateSageMakerNotebookInstance:
     Description: Whether to launch classic sagemaker notebook instance
     Type: String
     AllowedValues:
-      - "Yes"
-      - "No"
-    Default: "Yes"
+      - "true"
+      - "false"
+    Default: "true"
   StackVersion:
     Description: |
       CloudFormation Stack version.
@@ -72,7 +72,7 @@ Metadata:
         Label:
           default: SageMaker Configuration
         Parameters:
-          - LaunchSageMakerNotebookClassic
+          - CreateSageMakerNotebookInstance
           - SageMakerModelName
       -
         Label:
@@ -95,7 +95,7 @@ Metadata:
         default: SageMaker Batch Transform Input
       BatchTransformOutputLocation:
         default: SageMaker Batch Transform Output
-      LaunchSageMakerNotebookClassic:
+      CreateSageMakerNotebookInstance:
         default: Launch SageMaker Notebook Instance
       SageMakerModelName:
         default: SageMaker Model Name
@@ -110,7 +110,7 @@ Mappings:
       S3Key: "Predictive-maintenance-using-machine-learning/build/predictive_maintenance.zip"
 
 Conditions:
-  CreateClassicSageMakerResources: !Equals [ !Ref LaunchSageMakerNotebookClassic, "Yes" ]
+  CreateClassicSageMakerResources: !Equals [ !Ref CreateSageMakerNotebookInstance, "true" ]
   CreateCustomSolutionRole: !Equals [!Ref IamRole, ""]
 
 Resources:

@@ -13,6 +13,11 @@
             "default": "sm-soln-pred-maint"
         },
         {
+            "name": "IamRole",
+            "type": "text",
+            "default": ""
+        },
+        {
             "name": "S3Prefix",
             "type": "text",
             "default": "pred-maintenance-artifacts/"
@@ -38,9 +43,9 @@
             "default": "pred-maintenance-artifacts/batch-inference"
         },
         {
-            "name": "LaunchSageMakerNotebookClassic",
+            "name": "CreateSageMakerNotebookInstance",
             "type": "text",
-            "default": "No"
+            "default": "false"
         },
         {
             "name": "StackVersion",
