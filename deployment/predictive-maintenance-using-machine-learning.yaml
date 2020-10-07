@@ -244,7 +244,7 @@ Resources:
         SolutionPrefix: !Ref SolutionPrefix
         SolutionS3BucketName: !Ref S3Bucket
         SolutionS3Prefix: !Ref S3Prefix
-        SageMakerTrainingJobName: !Ref SageMakerModelName
+        SageMakerModelName: !Ref SageMakerModelName
         NotebookInstanceExecutionRoleArn: !If [CreateCustomSolutionRole, !GetAtt PermissionsStack.Outputs.RoleArn, !Ref IamRole]
         StackVersion: !Ref StackVersion
   PermissionsStack:
@@ -298,6 +298,6 @@ Outputs:
     Description: "Solution S3 prefix name"
     Value: !Ref S3Prefix
 
-  SageMakerTrainingJobName:
+  SageMakerModelName:
     Description: "Name of the solution training job and model"
     Value: !Ref SageMakerModelName

@@ -8,7 +8,7 @@ Parameters:
     Type: String
   SolutionS3Prefix:
     Type: String
-  SageMakerTrainingJobName:
+  SageMakerModelName:
     Type: String
   NotebookInstanceExecutionRoleArn:
     Type: String
@@ -54,7 +54,7 @@ Resources:
                 echo '  "SolutionPrefix": "${SolutionPrefix}",' >> stack_outputs.json
                 echo '  "SolutionS3Bucket": "${SolutionS3BucketName}",' >> stack_outputs.json
                 echo '  "SolutionS3Prefix": "${SolutionS3Prefix}",' >> stack_outputs.json
-                echo '  "SageMakerTrainingJobName": "${SageMakerTrainingJobName}"' >> stack_outputs.json
+                echo '  "SageMakerModelName": "${SageMakerModelName}"' >> stack_outputs.json
                 echo '}' >> stack_outputs.json
                 sudo chown -R ec2-user:ec2-user .
               - SolutionsRefBucketBase: !FindInMap [SolutionsS3BucketName, !Ref StackVersion, Prefix]

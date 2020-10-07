@@ -6,6 +6,12 @@ import json
 import io
 import os
 
+def delete_model_if_exists(model_name):
+    sm_client = boto3.client('sagemaker')
+    try:
+        sm_client.delete_model(ModelName=model_name)
+    except sm_client.exceptions.ClientError:
+        print("No existing model called: {}".format(model_name))
 
 def get_transform_input(bucket, solution_prefix, s3_test_key, s3_transform_input):
     s3_client = boto3.client('s3')

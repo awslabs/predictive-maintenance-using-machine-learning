@@ -31,5 +31,5 @@ solution_prefix = cfn_stack_outputs.get('SolutionPrefix', 'sm-soln-pred-maint')
 solution_bucket = cfn_stack_outputs.get('SolutionS3Bucket', default_bucket)
 s3_prefix = cfn_stack_outputs.get('SolutionS3Prefix', 'pred-maintenance-artifacts')
 
-training_job_name = cfn_stack_outputs.get('SageMakerTrainingJobName', 'sm-soln-pred-maint-model')
+model_name = cfn_stack_outputs.get('SageMakerModelName', 'sm-soln-pred-maint-model')
 role = cfn_stack_outputs.get('IamRole', default_role)
