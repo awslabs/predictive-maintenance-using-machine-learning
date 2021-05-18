@@ -6,20 +6,13 @@ This project shows how to use Amazon SageMaker to train a deep learning model th
 
 ## Getting Started
 
-To get started quickly, use the following quick-launch link to launch a CloudFormation Stack create form and follow the instructions below to deploy the resources in this project.
+To run this JumpStart 1P Solution and have the infrastructure deploy to your AWS account you will need to create an active SageMaker Studio instance (see Onboard to Amazon SageMaker Studio). When your Studio instance is Ready, use the instructions in SageMaker JumpStart to 1-Click Launch the solution.
 
-| Region | Stack |
-| ---- | ---- |
-|US East (N. Virginia) |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-east-1.console.aws.amazon.com/cloudformation/home?region=us-east-1#/stacks/create/review?templateURL=https://s3.amazonaws.com/sagemaker-solutions-us-east-1/Predictive-maintenance-using-machine-learning/deployment/predictive-maintenance-using-machine-learning.yaml&stackName=sm-soln-pred-maint-stack&param_CreateSageMakerNotebookInstance=true) |
-|US East (Ohio) |  [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-east-2.console.aws.amazon.com/cloudformation/home?region=us-east-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/sagemaker-solutions-us-east-2/Predictive-maintenance-using-machine-learning/deployment/predictive-maintenance-using-machine-learning.yaml&stackName=sm-soln-pred-maint-stack&param_CreateSageMakerNotebookInstance=true) |
-|US West (Oregon) | [<img src="https://s3.amazonaws.com/cloudformation-examples/cloudformation-launch-stack.png">](https://us-west-2.console.aws.amazon.com/cloudformation/home?region=us-west-2#/stacks/create/review?templateURL=https://s3.amazonaws.com/sagemaker-solutions-us-west-2/Predictive-maintenance-using-machine-learning/deployment/predictive-maintenance-using-machine-learning.yaml&stackName=sm-soln-pred-maint-stack&param_CreateSageMakerNotebookInstance=true) |
+The solution artifacts are included in this GitHub repository for reference.
 
+*Note*: Solutions are available in most regions including us-west-2, and us-east-1.
 
-### Additional Instructions
-
-* On the stack creation page, ensure that the option to **Launch SageMaker Notebook Instance** under SageMaker configurations is set to **true**, check the boxes to acknowledge creation of IAM resources, and click **Create Stack**. This should trigger the creation of the CloudFormation stack.
-
-* Once the stack is created, go to the Outputs tab and click on the SageMakerNotebook link. This will open up the jupyter notebook in a SageMaker Notebook instance where you can run the code in the notebook.
+**Caution**: Cloning this GitHub repository and running the code manually could lead to unexpected issues! Use the AWS CloudFormation template. You'll get an Amazon SageMaker Notebook instance that's been correctly setup and configured to access the other resources in the solution.
 
 ## Architecture
 
